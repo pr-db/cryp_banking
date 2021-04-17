@@ -1,0 +1,29 @@
+{
+  "name": "amoc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "compile.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PRAy-d/AMOC-team-SPD.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PRAy-d/AMOC-team-SPD/issues"
+  },
+  "homepage": "https://github.com/PRAy-d/AMOC-team-SPD#readme",
+  "dependencies": {
+    "ganache-cli": "^6.12.2",
+    "mocha": "^8.3.2",
+    "solc": "^0.4.26",
+    "truffle-hdwallet-provider": "0.0.3",
+    "web3": "^1.0.0-beta.35"
+  }
+}
