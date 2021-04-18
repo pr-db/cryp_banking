@@ -2,69 +2,69 @@ pragma solidity ^0.4.24;
 
 contract Bank
 {
-    address public owner;
-    uint public sB;                           //start blockhash
-    uint public eB;                           //end blockhash
+    uint public start_time; 
+    uint public end_time;                         
     string public ipfshash;
+    address public owner;
+
     uint private Bank_balance;
     uint private account_number;
-    enum acct{loan,current,savings,credit}      //type of account
-    acct public account_type;
-    
-    
-    mapping(address=>uint) private accounts;    //address to account number mapping
-    mapping(uint=>acct)private accts;           //account number to account type mapping
-    mapping(uint=>uint)private balance;         //account number to balance mapping
+    uint private transaction_id;
+    enum acct{loan,current,savings,credit,admin}        //type of account
+
+    uint public current_interest;
+    uint public savings_interest;
+    uint public loan_interest;
+ 
+    mapping(address=>uint) private accounts;            //address to account number mapping
+    mapping(uint=>acct)private accts;                   //account number to account type mapping
+    mapping(uint=>uint)private balance;                 //account number to balance mapping
+    mapping(uint=>uint)private transaction;             //transaction id to account number 
+    mapping(uint=>uint)private amount;                  //transaction id to ammount
+    mapping(uint=>uint)private ttime;                   //transaction id to time of the transaction
+    mapping(uint=>uint)private total_transac;                //account number to total no of transactionns
     
     constructor() public payable
     {
         Bank_balance=msg.value;
         owner=msg.sender;
         accounts[msg.sender]= account_number;
+        accts[account_number]=acct.admin;
+        balance[account_number]=Bank_balance;
+        transaction[transaction_id ]=account_number;
+        amount[transaction_id]=msg.value;
+        ttime[transaction_id]=now-start_time;
+        total_transac[account_number]++;
+
         account_number++;
+        transaction_id++;
         ipfshash="";
         Bank_balance=msg. value;
+        start_time=now;
     }
-    modifier condition_notowner(){
-        require (msg.sender!=owner);
-        _;
-    }
-    modifier condition_onlyowner(){
-        require (msg.sender==owner);
-        _;
-    }
-    modifier condition_loan(){
-        require(account_type==acct.loan);
-        _;
-    }
-    modifier condition_current(){
-        require(account_type==acct.current);
-        _;
-    }
-    modifier condition_savings(){
-        require(account_type==acct.savings);
-        _;
-    }
-    modifier condition_credit(){
-        require(account_type==acct.credit);
-        _;
-    }
-    modifier condition_s(){                                                                //start condition
-        require(block.number>=sB);
-        _;
-    }
-    modifier condition_e(){                                                                //end condition
-        require(block.number<=eB);
-        _;
-    }
+    modifier condition_notowner(){require (msg.sender!=owner); _;}
+    modifier condition_onlyowner(){require (msg.sender==owner); _;}
+    modifier condition_loan(){require(accts[accounts[msg.sender]]==acct.loan); _;}
+    modifier condition_current(){require(accts[accounts[msg.sender]]==acct.current); _;}
+    modifier condition_savings(){require(accts[accounts[msg.sender]]==acct.savings); _;}
+    modifier condition_credit(){require(accts[accounts[msg.sender]]==acct.credit); _;}
+    modifier condition_start(){require(now>=start_time); _;}
+    modifier condition_end(){require(now>=end_time); _;}
    
     function create_account(acct _account_type) public payable condition_notowner
     {
-        if(msg.value>=0.001 ether)
+        if(msg.value>=0.1 ether)
         {
             accounts[msg.sender]= account_number;
             accts[account_number]=_account_type;
+            balance[account_number]+=msg.value;
+            transaction[transaction_id]=account_number;
+            amount[transaction_id]=msg.value;
+            ttime[transaction_id]=now-start_time;
+            total_transac[account_number]++;
+
             account_number++;
+            transaction_id++;
         }
     }
     //act is local variable for account number
@@ -85,40 +85,233 @@ contract Bank
         return Bank_balance;
     }
 
-    function savings_account(uint act) public payable condition_notowner condition_s condition_e  returns(bool)
+    function savings_account(uint act) public payable condition_notowner condition_start condition_savings returns(bool)
     {
         if(accts[act]==acct.savings)
         {
             if(msg.value>=0.1 ether)
             {
-                balance(act)+=msg.value;
+                balance[act]+=msg.value;
                 Bank_balance+=msg.value;
+                transaction[transaction_id]=act;
+                amount[transaction_id]=msg.value;
+                ttime[transaction_id]=now-start_time;
+                total_transac[act]++;
+
+                transaction_id++;
                 return true;
             }
         }
         return false;  
     }
-    function current_account(uint act)public payable condition_notowner condition_s condition_e returns(bool)
+    function current_account(uint act)public payable condition_notowner condition_start condition_current returns(bool)
     {
         if(accts[act]==acct.current)
         {
             if(msg.value>=0.01 ether)
             {
-                balance(act)+=msg.value;
+                balance[act]+=msg.value;
                 Bank_balance+=msg.value;
+                transaction[transaction_id]=act;
+                amount[transaction_id]=msg.value;
+                ttime[transaction_id]=now-start_time;
+                total_transac[act]++;
+
+                transaction_id++;
                 return true;
             }
         }
         return false; 
     }
-    function withdraw(uint act,uint amount)public condition_notowner condition_s condition_e returns(bool)
+    function withdraw(uint act,uint amt)public condition_notowner condition_start  returns(bool)
     {
-        if(accts[act]==acct.savings)
-        {
+        // if(accts[act]==acct.savings)
+        // {
 
-        if(accts[act]==acct.current)
-        {
+        // if(accts[act]==acct.current)
+        // {
     }
 
+}
+
+
+contract ERC20
+{
+    function total_supply()public view returns(uint);
+    function balance(address token_owner) public view returns(uint bal);
+    function transf(address to, uint tokens) public returns (bool success);
+    
+    function allowance(address token_owner ,address spender) public view returns (uint remaining);
+    function approve(address spender,uint tokens) public returns(bool success);
+    function transfer_from(address from,address to,uint tokens) public returns (bool success);
+    
+    event Tf(address indexed from,address indexed to, uint tokens);
+    event Apr(address indexed token_owner,address indexed spender,uint tokens);
+}
+
+contract SPD is ERC20
+{
+    string public name="SPD";
+    string public symbol="SPD";
+    
+    uint public decimals=0;
+    uint public supply;
+    address public owner;
+    
+    mapping(address=>uint) public bals;
+    mapping(address=>mapping(address=>uint)) allowed;
+    
+    event Tf(address indexed from,address indexed to, uint tokens);
+    event Apr(address indexed token_owner,address indexed spender,uint tokens);
+    
+    constructor() public
+    {
+        supply=1000;
+        owner=msg.sender;
+        bals[owner]=supply;
+    }
+    function total_supply()public view returns(uint)
+    {
+        return supply;
+    }
+    function balance(address token_owner) public view returns(uint bal)
+    {
+        return bals[token_owner];
+    }
+    function transf(address to, uint tokens) public returns (bool success)
+    {
+        require(bals[msg.sender]>=tokens && tokens>0);
+        bals[to]+=tokens;
+        bals[msg.sender]-=tokens;
+        emit Tf(msg.sender,to,tokens); 
+        return true;
+    }
+    function allowance(address token_owner ,address spender) public view returns (uint )
+    {
+        return allowed[token_owner][spender];
+    }
+    function approve(address spender,uint tokens) public returns(bool)
+    {
+        require(bals[msg.sender]>tokens);
+        require(tokens>0);
+        allowed[msg.sender][spender]=tokens;
+        emit Apr(msg.sender,spender, tokens);
+        return true;
+    }
+    function transfer_from(address from,address to,uint tokens) public returns (bool )
+    {
+        require(allowed[from][to] >=tokens);
+        require(bals[from]>=tokens);
+        
+        bals[from]-=tokens;
+        bals[to]+=tokens;
+        allowed[from][to]-=tokens;
+        return true;
+    }
+    
+}
+
+contract SPD_ico is SPD
+{
+    address public admin;
+    address public deposit;
+    
+    uint public token_price =0.1 ether;
+    uint public hard_cap =100;
+    uint public raised_amt;
+    
+    uint public sales_start =now;
+    uint public sales_end =now+ 1000;
+    uint public trade_start =sales_end+100;
+    
+    uint min_investment =0.1 ether;
+    uint max_investment =10 ether;
+    
+    enum state{start,running,end,halt}
+    state public status =state.start;
+    
+    event Inv(address investor,uint value,uint tokens);
+    
+    modifier adm
+    {
+        require(msg.sender==admin);
+        _;
+    }
+    
+    constructor(address _deposit) public
+    {
+        deposit=_deposit;
+        admin=msg.sender;
+        status=state.start;
+    }
+    function halt_ico()public adm
+    {
+        status =state.end;
+    }
+    function continue_ico()public adm
+    {
+        status =state.running;
+    }
+    function current_state()public view returns(state)
+    {
+        if(status==state.halt)
+        {
+            return state.halt;
+        }
+        else if(now<sales_start)
+        {
+            return state.start;
+        }
+        else if(now>=sales_start&&now<sales_end)
+        {
+            return state.running;
+        }
+        else
+        {
+            return state.end;
+        }
+    }
+    function new_deposit(address _depo)public adm
+    {
+        deposit=_depo;
+    }
+    function invest()payable public returns(bool)
+    {
+        status=current_state();
+        require(status==state.running);
+        require(msg.value>=min_investment&&msg.value<=max_investment);
+        uint tokens=msg.value/token_price;
+        require(raised_amt+msg.value<=hard_cap);
+        raised_amt+=msg.value;
+        
+        bals[msg.sender]+=tokens;
+        bals[owner]-=tokens;
+        deposit.transfer(msg.value);
+        
+        emit Inv(msg.sender,msg.value,tokens);
+        return true;
+
+    }
+    function ()payable public
+    {
+        invest();
+    }
+    function transf(address to,uint value)public returns(bool)
+    {
+        require(now>trade_start);
+        super.transf(to,value);
+    }
+    function transfer_from(address _from,address _to,uint _value) public returns(bool)
+    {
+        require(now>trade_start);
+        super.transfer_from(_from,_to,_value);
+    }
+    function burn_tokens()public adm returns(bool)
+    {
+        require(status==state.end);
+        bals[owner]=0;
+        
+        
+    }
 }
 
