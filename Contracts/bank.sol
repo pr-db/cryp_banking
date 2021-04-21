@@ -12,18 +12,24 @@ contract Bank
     uint private transaction_id;
     enum acct{loan,current,savings,credit,admin}        //type of account
 
-    uint public current_interest;
-    uint public savings_interest;
-    uint public loan_interest;
+    uint public current_interest = 3;
+    uint public savings_interest = 6;
+    uint public loan_interest = 10;
+    
+    uint public min_current_bal = 0.05 ether;
+    uint public min_savings_bal = 0.1 ether;
+    uint public min_savings_trans = 0.1 ether;
+    uint public min_current_trans = 0.05 ether;
  
     mapping(address=>uint) private accounts;            //address to account number mapping
     mapping(uint=>acct)private accts;                   //account number to account type mapping
     mapping(uint=>uint)private balance;                 //account number to balance mapping
+    mapping(uint=>uint)private total_transac;           //account number to total no of transactionns
     mapping(uint=>uint)private transaction;             //transaction id to account number 
     mapping(uint=>uint)private amount;                  //transaction id to ammount
-    mapping(uint=>uint)private ttime;                   //transaction id to time of the transaction
-    mapping(uint=>uint)private total_transac;                //account number to total no of transactionns
-    
+    mapping(uint=>uint)private ttime;                   //transaction id to time of the transaction 
+    mapping(uint=>uint)private ttype;                   //transaction id to transaction type (0 for deposit 1 for withdrawal)
+
     constructor() public payable
     {
         Bank_balance=msg.value;
@@ -51,12 +57,25 @@ contract Bank
     modifier condition_start(){require(now>=start_time); _;}
     modifier condition_end(){require(now>=end_time); _;}
    
-    function create_account(acct _account_type) public payable condition_notowner
+    function create_account(acct actp) public payable condition_notowner
     {
-        if(msg.value>=0.1 ether)
+        if(actp==acct.savings && msg.value>=min_savings_bal)
         {
             accounts[msg.sender]= account_number;
-            accts[account_number]=_account_type;
+            accts[account_number]=actp;
+            balance[account_number]+=msg.value;
+            transaction[transaction_id]=account_number;
+            amount[transaction_id]=msg.value;
+            ttime[transaction_id]=now-start_time;
+            total_transac[account_number]++;
+
+            account_number++;
+            transaction_id++;
+        }
+        if(actp==acct.current && msg.value>=min_current_bal)
+        {
+            accounts[msg.sender]= account_number;
+            accts[account_number]=actp;
             balance[account_number]+=msg.value;
             transaction[transaction_id]=account_number;
             amount[transaction_id]=msg.value;
@@ -89,7 +108,7 @@ contract Bank
     {
         if(accts[act]==acct.savings)
         {
-            if(msg.value>=0.1 ether)
+            if(msg.value>=min_savings_trans)
             {
                 balance[act]+=msg.value;
                 Bank_balance+=msg.value;
@@ -108,7 +127,7 @@ contract Bank
     {
         if(accts[act]==acct.current)
         {
-            if(msg.value>=0.01 ether)
+            if(msg.value>=min_current_trans)
             {
                 balance[act]+=msg.value;
                 Bank_balance+=msg.value;
@@ -116,6 +135,7 @@ contract Bank
                 amount[transaction_id]=msg.value;
                 ttime[transaction_id]=now-start_time;
                 total_transac[act]++;
+                ttype[transaction_id]=0;
 
                 transaction_id++;
                 return true;
@@ -123,13 +143,25 @@ contract Bank
         }
         return false; 
     }
-    function withdraw(uint act,uint amt)public condition_notowner condition_start  returns(bool)
+    function withdraw(uint act,uint amt)public condition_notowner condition_start  returns(uint)
     {
-        // if(accts[act]==acct.savings)
-        // {
+        if(accts[act]==acct.savings)
+        {
+            if(balance[act]-amt>min_savings_bal)
+            {
+                Bank_balance-=amt;
+                balance[act]-=amt;
 
-        // if(accts[act]==acct.current)
-        // {
+                transaction[transaction_id]=act;
+                amount[transaction_id]=msg.value;
+                ttime[transaction_id]=now-start_time;
+                total_transac[act]++;
+
+                return amt;
+            }
+        }
+        if(accts[act]==acct.current)
+        {
     }
 
 }
