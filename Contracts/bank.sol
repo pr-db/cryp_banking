@@ -15,6 +15,8 @@ contract Bank
     uint public current_interest = 3;
     uint public savings_interest = 6;
     uint public loan_interest = 10;
+    uint public current_wtime = 1;
+    uint public savings_wtime = 10;
     
     uint public min_current_bal = 0.05 ether;
     uint public min_savings_bal = 0.1 ether;
@@ -27,8 +29,12 @@ contract Bank
     mapping(uint=>uint)private total_transac;           //account number to total no of transactionns
     mapping(uint=>uint)private transaction;             //transaction id to account number 
     mapping(uint=>uint)private amount;                  //transaction id to ammount
-    mapping(uint=>uint)private ttime;                   //transaction id to time of the transaction 
-    mapping(uint=>uint)private ttype;                   //transaction id to transaction type (0 for deposit 1 for withdrawal)
+    mapping(uint=>uint)private ttime;                   //transaction id to time                        (time of the transaction)
+    mapping(uint=>uint)private ttype;                   //transaction id to transaction type            (0 for deposit 1 for withdrawal)
+    mapping(uint=>uint)private wtime;                   //account number to time                        (withdraw time left)
+    mapping(uint=>uint)private wamount;                 //account number to amount                      (withdrawal allowed)
+    mapping(uint=>uint)private wallow;                  //account number to allowed                     (0 for not allowed 1 for allowed)
+    mapping(uint=>uint)private atime;                   //account number to time                        (account timestamp)
 
     constructor() public payable
     {
@@ -63,11 +69,24 @@ contract Bank
         {
             accounts[msg.sender]= account_number;
             accts[account_number]=actp;
+
             balance[account_number]+=msg.value;
             transaction[transaction_id]=account_number;
             amount[transaction_id]=msg.value;
             ttime[transaction_id]=now-start_time;
             total_transac[account_number]++;
+            ttype[transaction_id]=0;
+            if(wtime[account_number]==0)
+            {
+                atime[account_number]=now-start_time;
+            }
+            wtime[account_number]+=(now-start_time);
+            if((wtime[account_number]/86400)>savings_wtime)
+            {
+                wamount[account_number]+=balance[account_number];
+                wallow[account_number]=1;
+            }
+
 
             account_number++;
             transaction_id++;
@@ -81,28 +100,16 @@ contract Bank
             amount[transaction_id]=msg.value;
             ttime[transaction_id]=now-start_time;
             total_transac[account_number]++;
+            ttype[transaction_id]=0;
 
             account_number++;
             transaction_id++;
         }
     }
-    //act is local variable for account number
-    //acct is enum with accounnt types loan,current,savings,credit
-    //accts is mapping for account number to account type
-    //accounts is mapping for address to account number
-    
-    function check_account_type(uint act)public view condition_notowner returns(acct)
-    {
-        return accts[act];
-    }
-    function view_balance(uint act) public view condition_notowner returns(uint)
-    {
-        return balance[act];
-    }
-    function view_bank_balance()public view condition_onlyowner returns(uint)
-    {
-        return Bank_balance;
-    }
+       
+    function check_account_type(uint act)public view condition_notowner returns(acct){return accts[act];}
+    function view_balance(uint act) public view condition_notowner returns(uint){return balance[act];}
+    function view_bank_balance()public view condition_onlyowner returns(uint){return Bank_balance;}
 
     function savings_account(uint act) public payable condition_notowner condition_start condition_savings returns(bool)
     {
@@ -112,10 +119,13 @@ contract Bank
             {
                 balance[act]+=msg.value;
                 Bank_balance+=msg.value;
+
                 transaction[transaction_id]=act;
                 amount[transaction_id]=msg.value;
                 ttime[transaction_id]=now-start_time;
                 total_transac[act]++;
+                ttype[transaction_id]=0;
+                wtime[transaction_id]=savings_wtime;
 
                 transaction_id++;
                 return true;
@@ -131,11 +141,13 @@ contract Bank
             {
                 balance[act]+=msg.value;
                 Bank_balance+=msg.value;
+
                 transaction[transaction_id]=act;
                 amount[transaction_id]=msg.value;
                 ttime[transaction_id]=now-start_time;
                 total_transac[act]++;
                 ttype[transaction_id]=0;
+                wtime[transaction_id]=current_wtime;
 
                 transaction_id++;
                 return true;
@@ -143,9 +155,54 @@ contract Bank
         }
         return false; 
     }
+    function check_wtime(uint act)public condition_notowner condition_start returns(uint)
+    {
+        if(accounts[msg.sender]==act)
+        {
+            uint t=now-start_time;
+
+        }
+    }
     function withdraw(uint act,uint amt)public condition_notowner condition_start  returns(uint)
     {
         if(accts[act]==acct.savings)
+        {
+            
+            if(balance[act]-amt>min_savings_bal)
+            {
+                Bank_balance-=amt;
+                balance[act]-=amt;
+
+                transaction[transaction_id]=act;
+                amount[transaction_id]=amt;
+                ttime[transaction_id]=now-start_time;
+                total_transac[act]++;
+                ttype[transaction_id]=1;
+
+                transaction_id++;
+                return amt;
+            }
+            else if(balance[act]-amt>0)
+            {
+                uint _amt = balance[act]-amt;
+                Bank_balance-=_amt;
+                balance[act]-=_amt;
+
+                transaction[transaction_id]=act;
+                amount[transaction_id]=_amt;
+                ttime[transaction_id]=now-start_time;
+                total_transac[act]++;
+                ttype[transaction_id]=1;
+
+                transaction_id++;
+                return _amt;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        if(accts[act]==acct.current)
         {
             if(balance[act]-amt>min_savings_bal)
             {
@@ -153,15 +210,34 @@ contract Bank
                 balance[act]-=amt;
 
                 transaction[transaction_id]=act;
-                amount[transaction_id]=msg.value;
+                amount[transaction_id]=amt;
                 ttime[transaction_id]=now-start_time;
                 total_transac[act]++;
+                ttype[transaction_id]=1;
 
+                transaction_id++;
                 return amt;
             }
+            else if(balance[act]-amt>0)
+            {
+                _amt = balance[act]-amt;
+                Bank_balance-=_amt;
+                balance[act]-=_amt;
+
+                transaction[transaction_id]=act;
+                amount[transaction_id]=_amt;
+                ttime[transaction_id]=now-start_time;
+                total_transac[act]++;
+                ttype[transaction_id]=1;
+
+                transaction_id++;
+                return _amt;
+            }
+            else
+            {
+                return 0;
+            }
         }
-        if(accts[act]==acct.current)
-        {
     }
 
 }
