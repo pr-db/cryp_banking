@@ -113,76 +113,69 @@ contract Bank
     function view_balance(uint act) public view condition_notowner returns(uint){return balance[act];}
     function view_bank_balance()public view condition_onlyowner returns(uint){return Bank_balance;}
 
-    function savings_account(uint act) public payable condition_notowner condition_start condition_savings returns(bool)
+    function account(uint act) public payable condition_notowner condition_start condition_savings returns(bool)
     {
-        if(accts[act]==acct.savings)
+        if(accts[act]==acct.savings && msg.value>=min_savings_trans)
         {
-            if(msg.value>=min_savings_trans)
+            
+            balance[act]+=msg.value;
+            Bank_balance+=msg.value;
+
+            transaction[transaction_id]=act;
+            amount[transaction_id]=msg.value;
+            ttime[transaction_id]=now-start_time;
+            total_transac[act]++;
+            ttype[transaction_id]=0;
+
+            wtime[act]+=(now-start_time)-atime[act];
+            if(wallow[act]==0)
             {
-                balance[act]+=msg.value;
-                Bank_balance+=msg.value;
-
-                transaction[transaction_id]=act;
-                amount[transaction_id]=msg.value;
-                ttime[transaction_id]=now-start_time;
-                total_transac[act]++;
-                ttype[transaction_id]=0;
-
-                wtime[act]+=(now-start_time)-atime[act];
-                if(wallow[act]==0)
-                {
-                    if((wtime[act]/86400)>savings_wtime )
-                    {
-                        wamount[act]+=balance[act];
-                        wallow[act]=1;
-                        wtime[act]=0;
-                        atime[act] =now-start_time;
-                    }                
-                }
-                else
+                if((wtime[act]/86400)>savings_wtime )
                 {
                     wamount[act]+=balance[act];
-                }
-                transaction_id++;
-                return true;
+                    wallow[act]=1;
+                    wtime[act]=0;
+                    atime[act] =now-start_time;
+                }                
             }
+            else
+            {
+                wamount[act]+=balance[act];
+            }
+            transaction_id++;
+            return true;
+            
         }
-        return false;  
-    }
-    function current_account(uint act)public payable condition_notowner condition_start condition_current returns(bool)
-    {
-        if(accts[act]==acct.current)
+          
+        if(accts[act]==acct.current && msg.value>=min_current_trans)
         {
-            if(msg.value>=min_current_trans)
-            {
-                balance[act]+=msg.value;
-                Bank_balance+=msg.value;
+            balance[act]+=msg.value;
+            Bank_balance+=msg.value;
 
-                transaction[transaction_id]=act;
-                amount[transaction_id]=msg.value;
-                ttime[transaction_id]=now-start_time;
-                total_transac[act]++;
-                ttype[transaction_id]=0;
-                
-                wtime[act]+=(now-start_time)-atime[act];
-                if(wallow[act]==0)
-                {
-                    if((wtime[act]/86400)>savings_wtime )
-                    {
-                        wamount[act]+=balance[act];
-                        wallow[act]=1;
-                        wtime[act]=0;
-                        atime[act] =now-start_time;
-                    }                
-                }
-                else
+            transaction[transaction_id]=act;
+            amount[transaction_id]=msg.value;
+            ttime[transaction_id]=now-start_time;
+            total_transac[act]++;
+            ttype[transaction_id]=0;
+            
+            wtime[act]+=(now-start_time)-atime[act];
+            if(wallow[act]==0)
+            {
+                if((wtime[act]/86400)>savings_wtime )
                 {
                     wamount[act]+=balance[act];
-                }                           
-
-                transaction_id++;
-                return true;
+                    wallow[act]=1;
+                    wtime[act]=0;
+                    atime[act] =now-start_time;
+                }                
             }
+            else
+            {
+                wamount[act]+=balance[act];
+            }                           
+
+            transaction_id++;
+            return true;
         }
         return false; 
     }
@@ -208,7 +201,7 @@ contract Bank
         {
             if(accts[act]==acct.savings)
             {
-                if(balance[act]-amt>min_savings_bal)
+                if(wamount[act]-amt>min_savings_bal)
                 {
                     wtime[act]+=(now-start_time)-atime[act];
                     if((wtime[act]/86400)>savings_wtime||wallow[act]==1)
@@ -222,7 +215,7 @@ contract Bank
                         total_transac[act]++;
                         ttype[transaction_id]=1;                    
                     
-                        wamount[act]+=balance[act];
+                        wamount[act]-=amt;
                         wallow[act]=0;
                         wtime[act]=0;
                         atime[act] =now-start_time;
@@ -235,9 +228,9 @@ contract Bank
                     }
                     
                 }
-                else if(balance[act]-amt>0)
+                else if(wamount[act]-amt>0)
                 {
-                    uint _amt = balance[act]-amt;
+                    uint _amt = wamount[act]-amt;
                     wtime[act]+=(now-start_time)-atime[act];
                     if((wtime[act]/86400)>savings_wtime)
                     {
@@ -250,8 +243,41 @@ contract Bank
                         total_transac[act]++;
                         ttype[transaction_id]=1;                    
                     
-                        wamount[act]+=balance[act];
-                        wallow[act]=1;
+                        wamount[act]-=_amt;
+                        wallow[act]=0;
+                        wtime[act]=0;
+                        atime[act] =now-start_time;
+                        transaction_id++;
+                        return amt;
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            if(accts[act]==acct.current)
+            {
+                if(wamount[act]-amt>min_current_bal)
+                {
+                    wtime[act]+=(now-start_time)-atime[act];
+                    if((wtime[act]/86400)>current_wtime||wallow[act]==1)
+                    {
+                        Bank_balance-=amt;
+                        balance[act]-=amt;
+
+                        transaction[transaction_id]=act;
+                        amount[transaction_id]=amt;
+                        ttime[transaction_id]=now-start_time;
+                        total_transac[act]++;
+                        ttype[transaction_id]=1;                    
+                    
+                        wamount[act]-=amt;
+                        wallow[act]=0;
                         wtime[act]=0;
                         atime[act] =now-start_time;
                         transaction_id++;
@@ -262,52 +288,33 @@ contract Bank
                         return 0;
                     }
                     
+                }
+                else if(wamount[act]-amt>0)
+                {
+                    _amt = wamount[act]-amt;
+                    wtime[act]+=(now-start_time)-atime[act];
+                    if((wtime[act]/86400)>current_wtime)
+                    {
+                        Bank_balance-=_amt;
+                        balance[act]-=_amt;
+
+                        transaction[transaction_id]=act;
+                        amount[transaction_id]=_amt;
+                        ttime[transaction_id]=now-start_time;
+                        total_transac[act]++;
+                        ttype[transaction_id]=1;                    
                     
-
-                    transaction[transaction_id]=act;
-                    amount[transaction_id]=_amt;
-                    ttime[transaction_id]=now-start_time;
-                    total_transac[act]++;
-                    ttype[transaction_id]=1;
-
-                    transaction_id++;
-                    return _amt;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            if(accts[act]==acct.current)
-            {
-                if(balance[act]-amt>min_savings_bal)
-                {
-                    Bank_balance-=amt;
-                    balance[act]-=amt;
-
-                    transaction[transaction_id]=act;
-                    amount[transaction_id]=amt;
-                    ttime[transaction_id]=now-start_time;
-                    total_transac[act]++;
-                    ttype[transaction_id]=1;
-
-                    transaction_id++;
-                    return amt;
-                }
-                else if(balance[act]-amt>0)
-                {
-                    _amt = balance[act]-amt;
-                    Bank_balance-=_amt;
-                    balance[act]-=_amt;
-
-                    transaction[transaction_id]=act;
-                    amount[transaction_id]=_amt;
-                    ttime[transaction_id]=now-start_time;
-                    total_transac[act]++;
-                    ttype[transaction_id]=1;
-
-                    transaction_id++;
-                    return _amt;
+                        wamount[act]-=_amt;
+                        wallow[act]=0;
+                        wtime[act]=0;
+                        atime[act] =now-start_time;
+                        transaction_id++;
+                        return amt;
+                    }
+                    else
+                    {
+                        return 0;
+                    }
                 }
                 else
                 {
@@ -319,7 +326,13 @@ contract Bank
     }
 
 }
-
+//======================================================================================================
+//******************************************************************************************************
+//------------------------------------------------------------------------------------------------------
+//ERC20 token and ico implementation
+//------------------------------------------------------------------------------------------------------
+//******************************************************************************************************
+//======================================================================================================
 
 contract ERC20
 {
