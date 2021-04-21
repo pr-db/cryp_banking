@@ -76,18 +76,13 @@ contract Bank
             ttime[transaction_id]=now-start_time;
             total_transac[account_number]++;
             ttype[transaction_id]=0;
+
             if(wtime[account_number]==0)
             {
                 atime[account_number]=now-start_time;
             }
-            wtime[account_number]+=(now-start_time);
-            if((wtime[account_number]/86400)>savings_wtime)
-            {
-                wamount[account_number]+=balance[account_number];
-                wallow[account_number]=1;
-            }
-
-
+            wtime[account_number]+=(now-start_time)-atime[account_number];
+            
             account_number++;
             transaction_id++;
         }
@@ -95,6 +90,7 @@ contract Bank
         {
             accounts[msg.sender]= account_number;
             accts[account_number]=actp;
+
             balance[account_number]+=msg.value;
             transaction[transaction_id]=account_number;
             amount[transaction_id]=msg.value;
@@ -102,6 +98,12 @@ contract Bank
             total_transac[account_number]++;
             ttype[transaction_id]=0;
 
+            if(wtime[account_number]==0)
+            {
+                atime[account_number]=now-start_time;
+            }
+            wtime[account_number]+=(now-start_time)-atime[account_number];
+            
             account_number++;
             transaction_id++;
         }
@@ -125,8 +127,22 @@ contract Bank
                 ttime[transaction_id]=now-start_time;
                 total_transac[act]++;
                 ttype[transaction_id]=0;
-                wtime[transaction_id]=savings_wtime;
 
+                wtime[act]+=(now-start_time)-atime[act];
+                if(wallow[act]==0)
+                {
+                    if((wtime[act]/86400)>savings_wtime )
+                    {
+                        wamount[act]+=balance[act];
+                        wallow[act]=1;
+                        wtime[act]=0;
+                        atime[act] =now-start_time;
+                    }                
+                }
+                else
+                {
+                    wamount[act]+=balance[act];
+                }
                 transaction_id++;
                 return true;
             }
@@ -147,7 +163,22 @@ contract Bank
                 ttime[transaction_id]=now-start_time;
                 total_transac[act]++;
                 ttype[transaction_id]=0;
-                wtime[transaction_id]=current_wtime;
+                
+                wtime[act]+=(now-start_time)-atime[act];
+                if(wallow[act]==0)
+                {
+                    if((wtime[act]/86400)>savings_wtime )
+                    {
+                        wamount[act]+=balance[act];
+                        wallow[act]=1;
+                        wtime[act]=0;
+                        atime[act] =now-start_time;
+                    }                
+                }
+                else
+                {
+                    wamount[act]+=balance[act];
+                }                           
 
                 transaction_id++;
                 return true;
@@ -159,85 +190,132 @@ contract Bank
     {
         if(accounts[msg.sender]==act)
         {
-            uint t=now-start_time;
+            wtime[act]+=(now-start_time)-atime[act];
+            if((wtime[act]/86400)>savings_wtime)
+            {
+                wamount[act]+=balance[act];
+                wallow[act]=1;
+                wtime[act]=0;
+                atime[act] =now-start_time;
+            }  
+            return 10-(wtime[act]/86400);         
 
         }
     }
     function withdraw(uint act,uint amt)public condition_notowner condition_start  returns(uint)
     {
-        if(accts[act]==acct.savings)
+        if(accounts[msg.sender]==act)
         {
-            
-            if(balance[act]-amt>min_savings_bal)
+            if(accts[act]==acct.savings)
             {
-                Bank_balance-=amt;
-                balance[act]-=amt;
+                if(balance[act]-amt>min_savings_bal)
+                {
+                    wtime[act]+=(now-start_time)-atime[act];
+                    if((wtime[act]/86400)>savings_wtime||wallow[act]==1)
+                    {
+                        Bank_balance-=amt;
+                        balance[act]-=amt;
 
-                transaction[transaction_id]=act;
-                amount[transaction_id]=amt;
-                ttime[transaction_id]=now-start_time;
-                total_transac[act]++;
-                ttype[transaction_id]=1;
+                        transaction[transaction_id]=act;
+                        amount[transaction_id]=amt;
+                        ttime[transaction_id]=now-start_time;
+                        total_transac[act]++;
+                        ttype[transaction_id]=1;                    
+                    
+                        wamount[act]+=balance[act];
+                        wallow[act]=0;
+                        wtime[act]=0;
+                        atime[act] =now-start_time;
+                        transaction_id++;
+                        return amt;
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                    
+                }
+                else if(balance[act]-amt>0)
+                {
+                    uint _amt = balance[act]-amt;
+                    wtime[act]+=(now-start_time)-atime[act];
+                    if((wtime[act]/86400)>savings_wtime)
+                    {
+                        Bank_balance-=_amt;
+                        balance[act]-=_amt;
 
-                transaction_id++;
-                return amt;
+                        transaction[transaction_id]=act;
+                        amount[transaction_id]=_amt;
+                        ttime[transaction_id]=now-start_time;
+                        total_transac[act]++;
+                        ttype[transaction_id]=1;                    
+                    
+                        wamount[act]+=balance[act];
+                        wallow[act]=1;
+                        wtime[act]=0;
+                        atime[act] =now-start_time;
+                        transaction_id++;
+                        return amt;
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                    
+                    
+
+                    transaction[transaction_id]=act;
+                    amount[transaction_id]=_amt;
+                    ttime[transaction_id]=now-start_time;
+                    total_transac[act]++;
+                    ttype[transaction_id]=1;
+
+                    transaction_id++;
+                    return _amt;
+                }
+                else
+                {
+                    return 0;
+                }
             }
-            else if(balance[act]-amt>0)
+            if(accts[act]==acct.current)
             {
-                uint _amt = balance[act]-amt;
-                Bank_balance-=_amt;
-                balance[act]-=_amt;
+                if(balance[act]-amt>min_savings_bal)
+                {
+                    Bank_balance-=amt;
+                    balance[act]-=amt;
 
-                transaction[transaction_id]=act;
-                amount[transaction_id]=_amt;
-                ttime[transaction_id]=now-start_time;
-                total_transac[act]++;
-                ttype[transaction_id]=1;
+                    transaction[transaction_id]=act;
+                    amount[transaction_id]=amt;
+                    ttime[transaction_id]=now-start_time;
+                    total_transac[act]++;
+                    ttype[transaction_id]=1;
 
-                transaction_id++;
-                return _amt;
-            }
-            else
-            {
-                return 0;
+                    transaction_id++;
+                    return amt;
+                }
+                else if(balance[act]-amt>0)
+                {
+                    _amt = balance[act]-amt;
+                    Bank_balance-=_amt;
+                    balance[act]-=_amt;
+
+                    transaction[transaction_id]=act;
+                    amount[transaction_id]=_amt;
+                    ttime[transaction_id]=now-start_time;
+                    total_transac[act]++;
+                    ttype[transaction_id]=1;
+
+                    transaction_id++;
+                    return _amt;
+                }
+                else
+                {
+                    return 0;
+                }
             }
         }
-        if(accts[act]==acct.current)
-        {
-            if(balance[act]-amt>min_savings_bal)
-            {
-                Bank_balance-=amt;
-                balance[act]-=amt;
-
-                transaction[transaction_id]=act;
-                amount[transaction_id]=amt;
-                ttime[transaction_id]=now-start_time;
-                total_transac[act]++;
-                ttype[transaction_id]=1;
-
-                transaction_id++;
-                return amt;
-            }
-            else if(balance[act]-amt>0)
-            {
-                _amt = balance[act]-amt;
-                Bank_balance-=_amt;
-                balance[act]-=_amt;
-
-                transaction[transaction_id]=act;
-                amount[transaction_id]=_amt;
-                ttime[transaction_id]=now-start_time;
-                total_transac[act]++;
-                ttype[transaction_id]=1;
-
-                transaction_id++;
-                return _amt;
-            }
-            else
-            {
-                return 0;
-            }
-        }
+        return 0;
     }
 
 }
