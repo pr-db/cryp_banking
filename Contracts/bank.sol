@@ -35,6 +35,8 @@ contract Bank
     mapping(uint=>uint)private wamount;                 //account number to amount                      (withdrawal allowed)
     mapping(uint=>uint)private wallow;                  //account number to allowed                     (0 for not allowed 1 for allowed)
     mapping(uint=>uint)private atime;                   //account number to time                        (account timestamp)
+    mapping(uint=>uint)private interest;                //account number to interest amount
+    mapping(uint=>uint)private itime;                   //account number to time                        (a month to calculate interest)
 
     constructor() public payable
     {
@@ -142,6 +144,14 @@ contract Bank
             {
                 wamount[act]+=balance[act];
             }
+            itime[act]+=(now-start_time);
+            if(itime[act]/84000>182)
+            {
+                uint t=itime[act]/(84000*182);
+                interest[act]+=(balance[act]*savings_interest*t)/100;
+                itime[act]=(itime[act]%(84000*182));
+            }
+            
             transaction_id++;
             return true;
             
@@ -173,7 +183,13 @@ contract Bank
             {
                 wamount[act]+=balance[act];
             }                           
-
+            itime[act]+=(now-start_time);
+            if(itime[act]/84000>90)
+            {
+                t=itime[act]/(84000*90);
+                interest[act]+=(balance[act]*current_interest*t)/100;
+                itime[act]=(itime[act]%(84000*90));
+            }
             transaction_id++;
             return true;
         }
@@ -191,14 +207,35 @@ contract Bank
                 wtime[act]=0;
                 atime[act] =now-start_time;
             }  
+            itime[act]+=(now-start_time);
+            if(accts[act]==acct.savings)
+            {
+                if(itime[act]/84000>182)
+                {
+                    uint t=itime[act]/(84000*182);
+                    interest[act]+=(balance[act]*savings_interest*t)/100;
+                    itime[act]=(itime[act]%(84000*182));
+                }
+            }
+            if(accts[act]==acct.current)
+            {
+                if(itime[act]/84000>90)
+                {
+                    t=itime[act]/(84000*90);
+                    interest[act]+=(balance[act]*current_interest*t)/100;
+                    itime[act]=(itime[act]%(84000*90));
+                }
+            }
             return 10-(wtime[act]/86400);         
 
         }
     }
     function withdraw(uint act,uint amt)public condition_notowner condition_start  returns(uint)
     {
+        uint total;
         if(accounts[msg.sender]==act)
         {
+            address reciever=msg.sender;
             if(accts[act]==acct.savings)
             {
                 if(wamount[act]-amt>min_savings_bal)
@@ -220,7 +257,12 @@ contract Bank
                         wtime[act]=0;
                         atime[act] =now-start_time;
                         transaction_id++;
-                        return amt;
+
+                        total=amt+interest[act];
+                        interest[act]=0;
+
+                        reciever.transfer(this.balance);
+                        return total;
                     }
                     else
                     {
@@ -248,6 +290,11 @@ contract Bank
                         wtime[act]=0;
                         atime[act] =now-start_time;
                         transaction_id++;
+
+                        total=amt+interest[act];
+                        interest[act]=0;
+
+                        reciever.transfer(this.balance);
                         return amt;
                     }
                     else
@@ -280,6 +327,11 @@ contract Bank
                         wallow[act]=0;
                         wtime[act]=0;
                         atime[act] =now-start_time;
+
+                        total=amt+interest[act];
+                        interest[act]=0;
+
+                        reciever.transfer(this.balance);
                         transaction_id++;
                         return amt;
                     }
@@ -308,6 +360,11 @@ contract Bank
                         wallow[act]=0;
                         wtime[act]=0;
                         atime[act] =now-start_time;
+
+                        total=amt+interest[act];
+                        interest[act]=0;
+
+                        reciever.transfer(this.balance);
                         transaction_id++;
                         return amt;
                     }
