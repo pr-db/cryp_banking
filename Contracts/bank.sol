@@ -115,7 +115,7 @@ contract Bank
     function view_balance(uint act) public view condition_notowner returns(uint){return balance[act];}
     function view_bank_balance()public view condition_onlyowner returns(uint){return Bank_balance;}
 
-    function account(uint act) public payable condition_notowner condition_start condition_savings returns(bool)
+    function account(uint act) public payable condition_notowner condition_start returns(bool)
     {
         if(accts[act]==acct.savings && msg.value>=min_savings_trans)
         {
