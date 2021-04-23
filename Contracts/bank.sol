@@ -144,7 +144,7 @@ contract Bank
             {
                 wamount[act]+=balance[act];
             }
-            itime[act]+=(now-start_time);
+            itime[act]=(now-start_time);
             if(itime[act]/84000>182)
             {
                 uint t=itime[act]/(84000*182);
@@ -238,7 +238,7 @@ contract Bank
             address reciever=msg.sender;
             if(accts[act]==acct.savings)
             {
-                if(wamount[act]-amt>min_savings_bal)
+                if(wamount[act]-amt>0)
                 {
                     wtime[act]+=(now-start_time)-atime[act];
                     if((wtime[act]/86400)>savings_wtime||wallow[act]==1)
@@ -261,7 +261,7 @@ contract Bank
                         total=amt+interest[act];
                         interest[act]=0;
 
-                        reciever.transfer(this.balance);
+                        reciever.transfer(total);
                         return total;
                     }
                     else
@@ -270,38 +270,7 @@ contract Bank
                     }
                     
                 }
-                else if(wamount[act]-amt>0)
-                {
-                    uint _amt = wamount[act]-amt;
-                    wtime[act]+=(now-start_time)-atime[act];
-                    if((wtime[act]/86400)>savings_wtime)
-                    {
-                        Bank_balance-=_amt;
-                        balance[act]-=_amt;
-
-                        transaction[transaction_id]=act;
-                        amount[transaction_id]=_amt;
-                        ttime[transaction_id]=now-start_time;
-                        total_transac[act]++;
-                        ttype[transaction_id]=1;                    
-                    
-                        wamount[act]-=_amt;
-                        wallow[act]=0;
-                        wtime[act]=0;
-                        atime[act] =now-start_time;
-                        transaction_id++;
-
-                        total=amt+interest[act];
-                        interest[act]=0;
-
-                        reciever.transfer(this.balance);
-                        return amt;
-                    }
-                    else
-                    {
-                        return 0;
-                    }
-                }
+                
                 else
                 {
                     return 0;
@@ -309,7 +278,7 @@ contract Bank
             }
             if(accts[act]==acct.current)
             {
-                if(wamount[act]-amt>min_current_bal)
+                if(wamount[act]-amt>0)
                 {
                     wtime[act]+=(now-start_time)-atime[act];
                     if((wtime[act]/86400)>current_wtime||wallow[act]==1)
@@ -331,7 +300,7 @@ contract Bank
                         total=amt+interest[act];
                         interest[act]=0;
 
-                        reciever.transfer(this.balance);
+                        reciever.transfer(total);
                         transaction_id++;
                         return amt;
                     }
@@ -341,38 +310,7 @@ contract Bank
                     }
                     
                 }
-                else if(wamount[act]-amt>0)
-                {
-                    _amt = wamount[act]-amt;
-                    wtime[act]+=(now-start_time)-atime[act];
-                    if((wtime[act]/86400)>current_wtime)
-                    {
-                        Bank_balance-=_amt;
-                        balance[act]-=_amt;
-
-                        transaction[transaction_id]=act;
-                        amount[transaction_id]=_amt;
-                        ttime[transaction_id]=now-start_time;
-                        total_transac[act]++;
-                        ttype[transaction_id]=1;                    
-                    
-                        wamount[act]-=_amt;
-                        wallow[act]=0;
-                        wtime[act]=0;
-                        atime[act] =now-start_time;
-
-                        total=amt+interest[act];
-                        interest[act]=0;
-
-                        reciever.transfer(this.balance);
-                        transaction_id++;
-                        return amt;
-                    }
-                    else
-                    {
-                        return 0;
-                    }
-                }
+                
                 else
                 {
                     return 0;
