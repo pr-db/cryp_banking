@@ -1,2 +1,2 @@
-# AMOC-team-SPD
+# Cryp Banking
 Smart Contract
