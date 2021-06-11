@@ -1,2 +1,2 @@
 # Cryp Banking
-Smart Contract
+Smart Contract based banking system on ethyreum rinkeby testnet
